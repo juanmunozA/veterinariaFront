@@ -1,64 +1,45 @@
 import React, { useEffect, useState } from "react";
-import { Box, TextField, Button, Typography, Alert } from "@mui/material";
+import { Box, TextField, Button, CircularProgress, Alert } from "@mui/material";
 import RazaService from "./RazaService";
 
-const RazaForm = ({ initialData = null, onSuccess = null }) => {
-  const [form, setForm] = useState({ nombre: "" });
-  const [error, setError] = useState("");
+const RazaForm = ({ initialData = null, onSuccess = () => {}, onCancel = () => {} }) => {
+  const [nombre, setNombre] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (initialData) {
-      setForm({
-        nombre:
-          initialData.NombreRaza ??
-          "",
-      });
+      // soporta varias formas de nombre que pueda devolver el backend
+      setNombre(initialData.nombreRaza ?? initialData.NombreRaza ?? initialData.nombre ?? "");
     } else {
-      setForm({ nombre: "" });
+      setNombre("");
     }
-    setError("");
   }, [initialData]);
-
-  const getId = () =>
-    initialData?.RazaId ?? initialData?.razaId ?? initialData?.id ?? initialData?._id ?? null;
-
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setSaving(true);
 
-    const nombreTrim = (form.nombre || "").trim();
-    if (!nombreTrim) {
-      setError("Nombre es requerido");
-      setSaving(false);
+    const value = (nombre || "").trim();
+    if (!value) {
+      setError("El nombre es requerido");
       return;
     }
 
-    const payload = {
-      NombreRaza: nombreTrim, // clave principal que espera el backend
-      Nombre: nombreTrim,     // compatibilidad
-      nombre: nombreTrim,
-    };
-
-    const id = getId();
-    if (id) payload.RazaId = id; // backend exige dto.RazaId == id en PUT
+    const payload = { NombreRaza: value }; // backend espera nombreRaza
+    setSaving(true);
 
     try {
-      if (id) {
-        await RazaService.update(id, payload);
+      if (initialData && (initialData.razaId ?? initialData.id)) {
+        const id = initialData.razaId ?? initialData.id;
+        await RazaService.update(id, { razaId: Number(id), nombreRaza: value });
       } else {
-        delete payload.RazaId;
         await RazaService.create(payload);
-        setForm({ nombre: "" });
       }
-      if (onSuccess) onSuccess();
+      onSuccess();
     } catch (err) {
-      console.error("Error guardar raza", err);
-      const msg = err?.response?.data?.message || err?.response?.data || err.message || "Error al guardar";
-      setError(String(msg));
+      console.error(err);
+      setError(err?.response?.data?.message || err?.response?.data || err.message || "Error al guardar");
     } finally {
       setSaving(false);
     }
@@ -66,22 +47,14 @@ const RazaForm = ({ initialData = null, onSuccess = null }) => {
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography variant="h6">{initialData ? "Editar Raza" : "Nueva Raza"}</Typography>
-
-      <TextField
-        label="Nombre"
-        name="nombre"
-        value={form.nombre}
-        onChange={handleChange}
-        fullWidth
-        required
-      />
-
-      {error && <Alert severity="error">{String(error)}</Alert>}
-
-      <Button type="submit" variant="contained" disabled={saving}>
-        {saving ? "Guardando..." : "Guardar"}
-      </Button>
+      {error && <Alert severity="error">{error}</Alert>}
+      <TextField label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} fullWidth />
+      <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+        <Button onClick={onCancel}>Cancelar</Button>
+        <Button type="submit" variant="contained" disabled={saving}>
+          {saving ? <CircularProgress size={18} /> : "Guardar"}
+        </Button>
+      </Box>
     </Box>
   );
 };

@@ -3,6 +3,8 @@ import { Box, IconButton, Button, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
+import MenuOpenIcon from "@mui/icons-material/MenuOpen";
+import MenuIcon from "@mui/icons-material/Menu";
 import { useNavigate, useLocation } from "react-router-dom";
 import AuthService from "../../services/AuthService";
 import { ColorModeContext } from "../../theme/AppTheme";
@@ -14,12 +16,16 @@ const Navbar = ({ onOpenLogin = () => {} }) => {
   const location = useLocation();
   const logged = AuthService.isAuthenticated();
 
-  // no mostrar navbar en la ruta raíz "/"
   if (location.pathname === "/") return null;
 
   const handleLogout = () => {
     AuthService.logout();
     navigate("/");
+  };
+
+  const handleToggleSidebar = () => {
+    // dispara evento global; Sidebar lo escucha y cambia su estado interno
+    window.dispatchEvent(new Event("toggleSidebar"));
   };
 
   return (
@@ -40,6 +46,16 @@ const Navbar = ({ onOpenLogin = () => {} }) => {
         boxShadow: 1,
       }}
     >
+      {/* Toggle del sidebar (izquierda) */}
+      <IconButton
+        onClick={handleToggleSidebar}
+        sx={{ color: theme.palette.text.primary, mr: 1 }}
+        aria-label="Toggle sidebar"
+        size="large"
+      >
+        <MenuIcon />
+      </IconButton>
+
       <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
         Veterinaria
       </Typography>

@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { Box, Button, Dialog, DialogContent, Typography } from "@mui/material";
+import { Box, Button, Dialog, DialogContent } from "@mui/material";
 import ClienteList from "../components/cliente/ClienteList";
 import ClienteForm from "../components/cliente/ClienteForm";
+import PageLayout from "../components/common/PageLayout";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 const ClientePage = () => {
   const [open, setOpen] = useState(false);
@@ -14,20 +16,21 @@ const ClientePage = () => {
   };
 
   return (
-    <Box sx={{ pt: 10, px: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-        <Typography variant="h4">Clientes</Typography>
-        <Button variant="contained" onClick={handleOpen}>Agregar</Button>
-      </Box>
-
+    <PageLayout
+      title="Clientes"
+      actions={
+        <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={handleOpen}>
+          Agregar Cliente
+        </Button>
+      }
+    >
       <ClienteList refreshKey={refreshKey} />
-
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogContent>
           <ClienteForm onSuccess={handleAfterSave} />
         </DialogContent>
       </Dialog>
-    </Box>
+    </PageLayout>
   );
 };
 

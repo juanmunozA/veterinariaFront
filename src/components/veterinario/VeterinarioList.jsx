@@ -1,43 +1,70 @@
-import React, { useEffect, useState } from 'react';
-import VeterinarioService from './VeterinarioService';
-import Table from '../common/Table';
-import { useNavigate, Link } from 'react-router-dom';
-import { Button } from '@mui/material';
+import React, { useEffect, useState } from "react";
+import { Table, TableHead, TableRow, TableCell, TableBody, IconButton, Box, Dialog, DialogContent, Button } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import VeterinarioService from "./VeterinarioService";
+import VeterinarioForm from "./VeterinarioForm";
 
 const VeterinarioList = ({ refreshKey = 0 }) => {
   const [items, setItems] = useState([]);
-  const navigate = useNavigate();
+  const [err, setErr] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openCreate, setOpenCreate] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setErr("");
     VeterinarioService.getAll()
-      .then((r) => setItems(r.data ?? r ?? []))
-      .catch((e) => console.error('Error cargar veterinarios', e));
-  }, [refreshKey]);
-
-  const handleDelete = (id) => {
-    VeterinarioService.delete(id)
-      .then(() => setItems((prev) => prev.filter((i) => (i.id ?? i.VeterinarioId) !== id)))
-      .catch((e) => console.error('Error eliminar veterinario', e));
+      .then((r) => setItems(r?.data ?? r ?? []))
+      .catch((e) => { console.error(e); setErr(e?.message || "Error al cargar"); });
   };
 
-  const columns = [
-    { field: 'id', title: 'ID' },
-    { field: 'nombre', title: 'Nombre' },
-    { field: 'telefono', title: 'Teléfono' },
-  ];
+  useEffect(() => load(), [refreshKey]);
 
-  const actions = [
-    { label: 'Editar', onClick: (row) => navigate(`/veterinarios/${row.id ?? row.VeterinarioId}`) },
-    { label: 'Eliminar', onClick: (row) => handleDelete(row.id ?? row.VeterinarioId) },
-  ];
+  const openEditModal = (row) => { setEditing(row); setOpenEdit(true); };
+  const openCreateModal = () => { setEditing(null); setOpenCreate(true); };
+
+  const afterSave = () => { setOpenEdit(false); setOpenCreate(false); load(); };
+
+  const handleDelete = async (row) => {
+    const id = row.VeterinarioId ?? row.id ?? row._id;
+    if (!id) { setErr("No id para eliminar"); return; }
+    if (!window.confirm("¿Eliminar veterinario?")) return;
+    try { await VeterinarioService.delete(id); load(); } catch (e) { console.error(e); setErr(e?.message || "Error"); }
+  };
 
   return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <Button variant="contained" color="primary" component={Link} to="/veterinarios/nuevo">Nuevo Veterinario</Button>
-      </div>
-      <Table columns={columns} data={items} actions={actions} />
-    </div>
+    <Box>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Nombre</TableCell>
+            <TableCell>Teléfono</TableCell>
+            <TableCell>Acciones</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {items.map((v, i) => (
+            <TableRow key={v.VeterinarioId ?? v.id ?? i}>
+              <TableCell>{v.nombre}</TableCell>
+              <TableCell>{v.telefono}</TableCell>
+              <TableCell>
+                <IconButton size="small" onClick={() => openEditModal(v)} aria-label="editar"><EditIcon fontSize="small" /></IconButton>
+                <IconButton size="small" onClick={() => handleDelete(v)} aria-label="eliminar"><DeleteIcon fontSize="small" /></IconButton>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
+        <DialogContent><VeterinarioForm onSuccess={afterSave} /></DialogContent>
+      </Dialog>
+
+      <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="sm" fullWidth>
+        <DialogContent><VeterinarioForm initialData={editing} onSuccess={afterSave} /></DialogContent>
+      </Dialog>
+    </Box>
   );
 };
 

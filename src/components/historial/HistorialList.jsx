@@ -1,44 +1,63 @@
-import React, { useEffect, useState } from 'react';
-import HistorialService from './HistorialService';
-import Table from '../common/Table';
-import { useNavigate, Link } from 'react-router-dom';
-import { Button } from '@mui/material';
+import React, { useEffect, useState } from "react";
+import { Table, TableHead, TableRow, TableCell, TableBody, IconButton, Box, Dialog, DialogContent, Button } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import HistorialService from "./HistorialService";
+import HistorialForm from "./HistorialForm";
 
-const HistorialList = () => {
+const HistorialList = ({ refreshKey = 0 }) => {
   const [items, setItems] = useState([]);
-  const navigate = useNavigate();
+  const [err, setErr] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openCreate, setOpenCreate] = useState(false);
 
-  useEffect(() => {
-    HistorialService.getAll()
-      .then((r) => setItems(r.data))
-      .catch((e) => console.error('Error cargar historiales', e));
-  }, []);
+  const load = () => {
+    setErr("");
+    HistorialService.getAll().then(r => setItems(r?.data ?? r ?? [])).catch(e => { console.error(e); setErr(e?.message || "Error"); });
+  };
+  useEffect(() => load(), [refreshKey]);
 
-  const handleDelete = (id) => {
-    HistorialService.delete(id)
-      .then(() => setItems(items.filter((i) => i.id !== id)))
-      .catch((e) => console.error('Error eliminar historial', e));
+  const openEditModal = (row) => { setEditing(row); setOpenEdit(true); };
+  const openCreateModal = () => { setEditing(null); setOpenCreate(true); };
+  const afterSave = () => { setOpenEdit(false); setOpenCreate(false); load(); };
+
+  const handleDelete = async (row) => {
+    const id = row.HistorialId ?? row.id ?? row._id;
+    if (!id) { setErr("No id para eliminar"); return; }
+    if (!window.confirm("¿Eliminar historial?")) return;
+    try { await HistorialService.delete(id); load(); } catch (e) { console.error(e); setErr(e?.message || "Error"); }
   };
 
-  const columns = [
-    { field: 'id', title: 'ID' },
-    { field: 'mascotaId', title: 'Mascota ID' },
-    { field: 'descripcion', title: 'Descripción' },
-    { field: 'fecha', title: 'Fecha' },
-  ];
-
-  const actions = [
-    { label: 'Editar', onClick: (row) => navigate(`/historial/${row.id}`) },
-    { label: 'Eliminar', onClick: (row) => handleDelete(row.id) },
-  ];
-
   return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <Button variant="contained" color="primary" component={Link} to="/historial/nuevo">Nuevo Historial</Button>
-      </div>
-      <Table columns={columns} data={items} actions={actions} />
-    </div>
+    <Box>
+      <Table>
+        <TableHead>
+          <TableRow><TableCell>Mascota ID</TableCell><TableCell>Descripción</TableCell><TableCell>Fecha</TableCell><TableCell>Acciones</TableCell></TableRow>
+        </TableHead>
+        <TableBody>
+          {items.map((h, i) => (
+            <TableRow key={h.HistorialId ?? h.id ?? i}>
+              <TableCell>{h.mascotaId}</TableCell>
+              <TableCell>{h.descripcion}</TableCell>
+              <TableCell>{h.fecha}</TableCell>
+              <TableCell>
+                <IconButton size="small" onClick={() => openEditModal(h)} aria-label="editar"><EditIcon fontSize="small" /></IconButton>
+                <IconButton size="small" onClick={() => handleDelete(h)} aria-label="eliminar"><DeleteIcon fontSize="small" /></IconButton>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
+        <DialogContent><HistorialForm onSuccess={afterSave} /></DialogContent>
+      </Dialog>
+
+      <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="sm" fullWidth>
+        <DialogContent><HistorialForm initialData={editing} onSuccess={afterSave} /></DialogContent>
+      </Dialog>
+    </Box>
   );
 };
 

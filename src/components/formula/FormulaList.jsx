@@ -1,43 +1,62 @@
-import React, { useEffect, useState } from 'react';
-import FormulaService from './FormulaService';
-import Table from '../common/Table';
-import { useNavigate, Link } from 'react-router-dom';
-import { Button } from '@mui/material';
+import React, { useEffect, useState } from "react";
+import { Table, TableHead, TableRow, TableCell, TableBody, IconButton, Box, Dialog, DialogContent, Button } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import FormulaService from "./FormulaService";
+import FormulaForm from "./FormulaForm";
 
-const FormulaList = () => {
+const FormulaList = ({ refreshKey = 0 }) => {
   const [items, setItems] = useState([]);
-  const navigate = useNavigate();
+  const [err, setErr] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openCreate, setOpenCreate] = useState(false);
 
-  useEffect(() => {
-    FormulaService.getAll()
-      .then((r) => setItems(r.data))
-      .catch((e) => console.error('Error cargar formulas', e));
-  }, []);
+  const load = () => {
+    setErr("");
+    FormulaService.getAll().then(r => setItems(r?.data ?? r ?? [])).catch(e => { console.error(e); setErr(e?.message || "Error"); });
+  };
+  useEffect(() => load(), [refreshKey]);
 
-  const handleDelete = (id) => {
-    FormulaService.delete(id)
-      .then(() => setItems(items.filter((i) => i.id !== id)))
-      .catch((e) => console.error('Error eliminar formula', e));
+  const openEditModal = (row) => { setEditing(row); setOpenEdit(true); };
+  const openCreateModal = () => { setEditing(null); setOpenCreate(true); };
+  const afterSave = () => { setOpenEdit(false); setOpenCreate(false); load(); };
+
+  const handleDelete = async (row) => {
+    const id = row.FormulaId ?? row.id ?? row._id;
+    if (!id) { setErr("No id para eliminar"); return; }
+    if (!window.confirm("¿Eliminar fórmula?")) return;
+    try { await FormulaService.delete(id); load(); } catch (e) { console.error(e); setErr(e?.message || "Error"); }
   };
 
-  const columns = [
-    { field: 'id', title: 'ID' },
-    { field: 'nombre', title: 'Nombre' },
-    { field: 'descripcion', title: 'Descripción' },
-  ];
-
-  const actions = [
-    { label: 'Editar', onClick: (row) => navigate(`/formulas/${row.id}`) },
-    { label: 'Eliminar', onClick: (row) => handleDelete(row.id) },
-  ];
-
   return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <Button variant="contained" color="primary" component={Link} to="/formulas/nuevo">Nueva Fórmula</Button>
-      </div>
-      <Table columns={columns} data={items} actions={actions} />
-    </div>
+    <Box>
+      <Table>
+        <TableHead>
+          <TableRow><TableCell>Nombre</TableCell><TableCell>Descripción</TableCell><TableCell>Acciones</TableCell></TableRow>
+        </TableHead>
+        <TableBody>
+          {items.map((f, i) => (
+            <TableRow key={f.FormulaId ?? f.id ?? i}>
+              <TableCell>{f.nombre}</TableCell>
+              <TableCell>{f.descripcion}</TableCell>
+              <TableCell>
+                <IconButton size="small" onClick={() => openEditModal(f)} aria-label="editar"><EditIcon fontSize="small" /></IconButton>
+                <IconButton size="small" onClick={() => handleDelete(f)} aria-label="eliminar"><DeleteIcon fontSize="small" /></IconButton>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
+        <DialogContent><FormulaForm onSuccess={afterSave} /></DialogContent>
+      </Dialog>
+
+      <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="sm" fullWidth>
+        <DialogContent><FormulaForm initialData={editing} onSuccess={afterSave} /></DialogContent>
+      </Dialog>
+    </Box>
   );
 };
 
